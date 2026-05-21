@@ -103,7 +103,7 @@ function FinishContent() {
 
 export default function PaymentFinishPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<div className="min-h-screen bg-[#030303] flex items-center justify-center text-white">Loading...</div>}>
       <FinishContent />
     </Suspense>
   );
