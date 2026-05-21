@@ -1,18 +1,34 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { CheckCircle, Clock, XCircle, Shield } from "lucide-react";
 
 function FinishContent() {
   const params = useSearchParams();
   const router = useRouter();
+  const supabase = createClient();
 
   const transactionStatus = params.get("transaction_status");
   const orderId = params.get("order_id");
 
   const isSuccess = transactionStatus === "settlement" || transactionStatus === "capture";
   const isPending = transactionStatus === "pending";
+
+  useEffect(() => {
+    if (!orderId) return;
+    async function updateOrder() {
+      const status = isSuccess ? "paid" : isPending ? "pending" : "failed";
+      await supabase
+        .from("orders")
+        .update({ status })
+        .eq("midtrans_order_id", orderId);
+    }
+    updateOrder();
+  }, [orderId]);
 
   return (
     <div className="relative min-h-screen bg-[#030303] font-sans flex flex-col items-center justify-center px-6">

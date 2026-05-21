@@ -1,63 +1,86 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+export const dynamic = "force-dynamic";
 
-export default function PaymentFinishPage() {
+import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { CheckCircle, Clock, XCircle, Shield } from "lucide-react";
+
+function FinishContent() {
   const params = useSearchParams();
   const router = useRouter();
   const supabase = createClient();
 
-  const orderId = params.get("order_id");         // QA-xxx
-  const statusCode = params.get("status_code");   // 200
-  const transactionStatus = params.get("transaction_status"); // settlement / pending
+  const transactionStatus = params.get("transaction_status");
+  const orderId = params.get("order_id");
+
+  const isSuccess = transactionStatus === "settlement" || transactionStatus === "capture";
+  const isPending = transactionStatus === "pending";
 
   useEffect(() => {
     if (!orderId) return;
-
     async function updateOrder() {
-      const status =
-        transactionStatus === "settlement" || transactionStatus === "capture"
-          ? "paid"
-          : transactionStatus === "pending"
-          ? "pending"
-          : "failed";
-
-      await supabase
-        .from("orders")
-        .update({ status })
-        .eq("midtrans_order_id", orderId);
+      const status = isSuccess ? "paid" : isPending ? "pending" : "failed";
+      await supabase.from("orders").update({ status }).eq("midtrans_order_id", orderId);
     }
-
     updateOrder();
   }, [orderId]);
 
   return (
-    <div className="min-h-screen bg-[#030303] flex flex-col items-center justify-center text-white gap-4">
-      {transactionStatus === "settlement" || transactionStatus === "capture" ? (
-        <>
-          <h1 className="text-2xl font-black text-green-400">Pembayaran Berhasil! 🎉</h1>
-          <p className="text-zinc-400 text-sm font-mono">Order ID: {orderId}</p>
-          <button onClick={() => router.push("/dashboard")}
-            className="mt-4 px-6 py-2 bg-orange-600 text-black font-bold rounded-lg">
-            Kembali ke Toko
-          </button>
-        </>
-      ) : transactionStatus === "pending" ? (
-        <>
-          <h1 className="text-2xl font-black text-yellow-400">Menunggu Pembayaran</h1>
-          <p className="text-zinc-400 text-sm">Selesaikan pembayaranmu sebelum waktu habis.</p>
-        </>
-      ) : (
-        <>
-          <h1 className="text-2xl font-black text-red-400">Pembayaran Gagal</h1>
-          <button onClick={() => router.push("/dashboard/cart")}
-            className="mt-4 px-6 py-2 bg-zinc-800 text-white font-bold rounded-lg">
-            Coba Lagi
-          </button>
-        </>
-      )}
+    <div className="relative min-h-screen bg-[#030303] font-sans flex flex-col items-center justify-center px-6">
+      <div className="absolute inset-0 z-0 bg-cover bg-center opacity-10" style={{ backgroundImage: "url('/image_6.png')" }} />
+      <div className="absolute inset-0 z-[1] bg-black/50" />
+      <div className="relative z-10 w-full max-w-md space-y-6 text-center">
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <div className="w-10 h-10 bg-orange-500/10 border border-orange-500/50 flex items-center justify-center rounded">
+            <Shield className="w-6 h-6 text-orange-400" />
+          </div>
+          <h1 className="text-lg font-black italic uppercase tracking-tighter text-white">
+            QUANTUM <span className="text-orange-500">ARSENAL</span>
+          </h1>
+        </div>
+        <div className={`relative bg-zinc-900/60 border rounded-xl p-8 space-y-4 ${isSuccess ? "border-green-500/30" : isPending ? "border-yellow-500/30" : "border-red-500/30"}`}>
+          <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-orange-500/60" />
+          <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-cyan-500/60" />
+          {isSuccess && (
+            <>
+              <CheckCircle className="w-16 h-16 text-green-400 mx-auto" />
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Pembayaran <span className="text-green-400">Berhasil!</span></h2>
+              <p className="text-zinc-400 text-sm font-mono">Pesananmu sedang diproses oleh admin.</p>
+            </>
+          )}
+          {isPending && (
+            <>
+              <Clock className="w-16 h-16 text-yellow-400 mx-auto" />
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Menunggu <span className="text-yellow-400">Pembayaran</span></h2>
+              <p className="text-zinc-400 text-sm font-mono">Selesaikan pembayaranmu sebelum waktu habis.</p>
+            </>
+          )}
+          {!isSuccess && !isPending && (
+            <>
+              <XCircle className="w-16 h-16 text-red-400 mx-auto" />
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Pembayaran <span className="text-red-400">Gagal</span></h2>
+              <p className="text-zinc-400 text-sm font-mono">Transaksi dibatalkan atau ditolak.</p>
+            </>
+          )}
+          {orderId && <p className="text-[10px] text-zinc-600 font-mono border-t border-zinc-800 pt-3">Order ID: {orderId}</p>}
+        </div>
+        <div className="flex gap-3">
+          <button onClick={() => router.push("/dashboard")} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-black font-black text-xs uppercase tracking-widest rounded-lg transition-all">Kembali ke Toko</button>
+          {isSuccess && (
+            <button onClick={() => router.push("/dashboard/orders")} className="flex-1 py-3 border border-zinc-700 hover:border-zinc-500 text-zinc-300 font-bold text-xs uppercase tracking-widest rounded-lg transition-all">Lihat Pesanan</button>
+          )}
+        </div>
+      </div>
     </div>
+  );
+}
+
+export default function PaymentFinishPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#030303] flex items-center justify-center text-white">Loading...</div>}>
+      <FinishContent />
+    </Suspense>
   );
 }
